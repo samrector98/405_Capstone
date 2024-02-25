@@ -1,5 +1,5 @@
 import mysql.connector
-import pyspark
+import requests
 from pyspark.sql import SparkSession
 
 import database_setup
@@ -9,8 +9,6 @@ import login_info
 
 # Set up the spark session
 spark_app = SparkSession.builder.appName("sparkdemo").getOrCreate()
-
-
 
 # If the database does not exist...
 # Establish a connection to our mySQL server.
@@ -58,17 +56,67 @@ branch_df = spark_app.createDataFrame(branch_data, schema = database_setup.branc
 credit_df = spark_app.createDataFrame(credit_data, schema = database_setup.credit_schema)
 customer_df = spark_app.createDataFrame(customer_data, schema = database_setup.customer_schema)
 
-branch_df.printSchema()
-branch_df.show()
+# Get the data from the API provided in the instructions
+response = requests.get('https://raw.githubusercontent.com/platformps/LoanDataset/main/loan_data.json')
+loan_data = response.json()
 
-credit_df.printSchema()
-credit_df.show()
+# Print out the response code
+print(response.status_code)
 
-customer_df.printSchema()
-customer_df.show()
+# Create the dataframe for the loan API information using the data list and our custom schema
+loan_df = spark_app.createDataFrame(loan_data, database_setup.loan_schema)
+
+# The next step is to perform data transformation as outlined in the mapping document
+new_branch_df = database_setup.modify_branch_data(branch_df)
+# new_credit_df = database_setup.modify_credit_data(credit_df)
+new_customer_df = database_setup.modify_customer_data(customer_df)
+
+new_branch_df.printSchema()
+new_branch_df.show()
+
+# new_credit_df.printSchema()
+# new_credit_df.show()
+
+new_customer_df.printSchema()
+new_customer_df.show()
+
+# Sending modified dataframes to the mySQL database
+
+new_branch_df.write.format("jdbc") \
+    .mode("append") \
+    .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
+    .option("dbtable", "CDW_SAPP_BRANCH") \
+    .option("user", login_info.mysql_username) \
+    .option("password", login_info.mysql_password) \
+    .save()
+
+#new_credit_df.write.format("jdbc") \
+    #.mode("overwrite") \
+    #.option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
+    #.option("dbtable", "CDW_SAPP_CREDIT_CARD") \
+    #.option("user", login_info.mysql_username) \
+    #.option("password", login_info.mysql_password) \
+    #.save()
+
+new_customer_df.write.format("jdbc") \
+    .mode("append") \
+    .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
+    .option("dbtable", "CDW_SAPP_CUSTOMER") \
+    .option("user", login_info.mysql_username) \
+    .option("password", login_info.mysql_password) \
+    .save()
+
+loan_df.write.format("jdbc") \
+    .mode("append") \
+    .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
+    .option("dbtable", "CDW_SAPP_loan_application") \
+    .option("user", login_info.mysql_username) \
+    .option("password", login_info.mysql_password) \
+    .save()
+
+
 
 # If the database does exist...
 # Create dataframes from each of the relevant tables in the database
 
 # Lastly, the program will enter the main loop of user input and respective output.
-

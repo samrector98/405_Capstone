@@ -38,8 +38,9 @@ cursor = connection.cursor()
 
 #Now, setup the tables using the mySQL queries stored in our data_loading file
 cursor.execute(database_setup.query_create_branch_table)
-cursor.execute(database_setup.query_create_credit_table)
 cursor.execute(database_setup.query_create_customer_table)
+cursor.execute(database_setup.query_create_credit_table)
+cursor.execute(database_setup.query_create_loan_table)
 connection.commit()
 
 # Now that we are done using the mysql connector, close the cursor and connection.

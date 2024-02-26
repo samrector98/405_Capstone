@@ -32,7 +32,11 @@ def modify_branch_data(df):
 def modify_credit_data(df):
     
     # Format the year, day, and month variables to have the proper number of digits each BEFORE combinging them into the new column
-    new_df = df.withColumn("YEAR", format_string("%04d", "YEAR"))
+    new_df = df.withColumn("YEAR", col("YEAR").cast('integer'))
+    new_df = new_df.withColumn("MONTH", col("MONTH").cast('integer'))
+    new_df = new_df.withColumn("DAY", col("DAY").cast('integer'))
+    
+    new_df = new_df.withColumn("YEAR", format_string("%04d", "YEAR"))
     new_df = new_df.withColumn("MONTH", format_string("%02d", "MONTH"))
     new_df = new_df.withColumn("DAY", format_string("%02d", "DAY"))
 
@@ -40,11 +44,13 @@ def modify_credit_data(df):
     new_df = new_df.withColumn("TIMEID", concat(col("YEAR"), col("MONTH"), col("DAY")))
 
     # Drop the columns that were combined into our new column, as we will not need duplicate info in our new version of the dataset
-    # new_df = new_df.drop("YEAR", "MONTH", "DAY")
+    new_df = new_df.drop("YEAR", "MONTH", "DAY")
 
     # EXTRA: Format the transaction value string to always include two decimal places, even if it is a trailing zero
     #new_df = new_df.withColumn("TRANSACTION_VALUE", format_string("%.2f", "TRANSACTION_VALUE"))
     #new_df = new_df.withColumn("TRANSACTION_VALUE", col("TRANSACTION_VALUE").cast("float"))
+
+    new_df = new_df.withColumnRenamed("CREDIT_CARD_NO", "CUST_CC_NO")
 
     return new_df
 
@@ -95,7 +101,7 @@ credit_schema = StructType([
     StructField("DAY", StringType(), True),
     StructField("MONTH", StringType(), True),
     StructField("YEAR", StringType(), True),
-    StructField("CUST_CC_NO", StringType(), True),
+    StructField("CREDIT_CARD_NO", StringType(), True),
     StructField("CUST_SSN", IntegerType(), False),
     StructField("BRANCH_CODE", IntegerType(), False)
 ])

@@ -69,19 +69,30 @@ loan_df = spark_app.createDataFrame(loan_data, database_setup.loan_schema)
 
 # The next step is to perform data transformation as outlined in the mapping document
 new_branch_df = database_setup.modify_branch_data(branch_df)
-# new_credit_df = database_setup.modify_credit_data(credit_df)
+new_credit_df = database_setup.modify_credit_data(credit_df)
 new_customer_df = database_setup.modify_customer_data(customer_df)
 
 new_branch_df.printSchema()
 new_branch_df.show()
 
-# new_credit_df.printSchema()
-# new_credit_df.show()
+new_credit_df.printSchema()
+new_credit_df.show()
 
 new_customer_df.printSchema()
 new_customer_df.show()
 
+loan_df.printSchema()
+loan_df.show()
+
 # Sending modified dataframes to the mySQL database
+
+loan_df.write.format("jdbc") \
+    .mode("append") \
+    .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
+    .option("dbtable", "CDW_SAPP_LOAN_APPLICATION") \
+    .option("user", login_info.mysql_username) \
+    .option("password", login_info.mysql_password) \
+    .save()
 
 new_branch_df.write.format("jdbc") \
     .mode("append") \
@@ -91,14 +102,6 @@ new_branch_df.write.format("jdbc") \
     .option("password", login_info.mysql_password) \
     .save()
 
-#new_credit_df.write.format("jdbc") \
-    #.mode("overwrite") \
-    #.option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
-    #.option("dbtable", "CDW_SAPP_CREDIT_CARD") \
-    #.option("user", login_info.mysql_username) \
-    #.option("password", login_info.mysql_password) \
-    #.save()
-
 new_customer_df.write.format("jdbc") \
     .mode("append") \
     .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
@@ -107,15 +110,13 @@ new_customer_df.write.format("jdbc") \
     .option("password", login_info.mysql_password) \
     .save()
 
-loan_df.write.format("jdbc") \
+new_credit_df.write.format("jdbc") \
     .mode("append") \
     .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
-    .option("dbtable", "CDW_SAPP_loan_application") \
+    .option("dbtable", "CDW_SAPP_CREDIT_CARD") \
     .option("user", login_info.mysql_username) \
     .option("password", login_info.mysql_password) \
     .save()
-
-
 
 # If the database does exist...
 # Create dataframes from each of the relevant tables in the database

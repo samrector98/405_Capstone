@@ -4,6 +4,7 @@ from pyspark.sql import SparkSession
 
 import database_setup
 import login_info
+import transaction_details
 
 # Upon program start-up, print a message to show the program is running.
 
@@ -72,20 +73,7 @@ new_branch_df = database_setup.modify_branch_data(branch_df)
 new_credit_df = database_setup.modify_credit_data(credit_df)
 new_customer_df = database_setup.modify_customer_data(customer_df)
 
-new_branch_df.printSchema()
-new_branch_df.show()
-
-new_credit_df.printSchema()
-new_credit_df.show()
-
-new_customer_df.printSchema()
-new_customer_df.show()
-
-loan_df.printSchema()
-loan_df.show()
-
 # Sending modified dataframes to the mySQL database
-
 loan_df.write.format("jdbc") \
     .mode("append") \
     .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
@@ -122,3 +110,72 @@ new_credit_df.write.format("jdbc") \
 # Create dataframes from each of the relevant tables in the database
 
 # Lastly, the program will enter the main loop of user input and respective output.
+
+menu = """Please select from the following options:
+
+1. Display all transactions in a specific zip code over a specified time frame.
+2. Display all transactions for a specific transaction type.
+3. Display all transactions from all branches located in a specific state.
+4. Display the account details of a specific customer.
+5. Modify the account details of a specific customer.
+6. Generate a monthly report containing the transactions on a specific credit card.
+7. Display all transactions made by a specific customer over a specified time frame.
+
+Or, enter '0' to exit the program.
+
+Your choice: """
+
+user_input = input(menu).strip()
+
+while user_input != '0':
+
+    if user_input == '1':
+        # Create or replace the temporary views needed by the function
+        new_credit_df.createOrReplaceTempView("credit_table")
+        new_customer_df.createOrReplaceTempView("customer_table")
+        
+        # Call the function
+        results_1 = transaction_details.get_transactions_by_zip_code()
+        
+        # Display the results
+        results_1.show()
+        
+    elif user_input == '2':
+        # Create or replace the temporary view needed by the function
+        new_credit_df.createOrReplaceTempView("credit_table")
+        
+        # Call the function
+        results_2 = transaction_details.get_transactions_by_type()
+        
+        # Display the results
+        results_2.show()
+        print("The number of transactions found for the chosen transaction type was {}.".format(results_2.count()))
+        # output the total value of the transactions
+
+    elif user_input == '3':
+        # Create or replace the temporary views needed by the function
+        new_branch_df.createOrReplaceTempView("branch_table")
+        new_credit_df.createOrReplaceTempView("credit_table")
+
+        # Call the function
+        results_3 = transaction_details.get_transactions_by_state()
+
+        # Display the results
+        results_3.show()
+        print("The number of transactions found for the chosen transaction type was {}.".format(results_3.count()))
+        # output the total value of the transactions
+
+    elif user_input == '4':
+        break
+    elif user_input == '5':
+        break
+    elif user_input == '6':
+        break
+    elif user_input == '7':
+        break
+    else:
+        print("Error. The option you entered was not recognized. Please try again.")
+    
+    user_input = input(menu).strip()
+
+print("Exiting program...") 

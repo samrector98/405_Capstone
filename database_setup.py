@@ -1,6 +1,6 @@
-import json
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 from pyspark.sql.functions import col, lit, concat, lower, initcap, format_string, substring
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
+import json
 
 # This file includes all functions and variables related to the database that will be accessed by the main program.
 
@@ -46,10 +46,6 @@ def modify_credit_data(df):
     # Drop the columns that were combined into our new column, as we will not need duplicate info in our new version of the dataset
     new_df = new_df.drop("YEAR", "MONTH", "DAY")
 
-    # EXTRA: Format the transaction value string to always include two decimal places, even if it is a trailing zero
-    #new_df = new_df.withColumn("TRANSACTION_VALUE", format_string("%.2f", "TRANSACTION_VALUE"))
-    #new_df = new_df.withColumn("TRANSACTION_VALUE", col("TRANSACTION_VALUE").cast("float"))
-
     new_df = new_df.withColumnRenamed("CREDIT_CARD_NO", "CUST_CC_NO")
 
     return new_df
@@ -81,7 +77,6 @@ def modify_customer_data(df):
     new_df = new_df.withColumn("CUST_ZIP", col("CUST_ZIP").cast("string"))
 
     return new_df
-
 
 # Scehma variables to use when initially gathering data from the provided files
 branch_schema = StructType([
@@ -152,14 +147,11 @@ query_create_credit_table = """
 CREATE TABLE IF NOT EXISTS CDW_SAPP_CREDIT_CARD (
     TRANSACTION_ID INT PRIMARY KEY,
     TRANSACTION_TYPE VARCHAR(255),
-    TRANSACTION_VALUE DECIMAL,
+    TRANSACTION_VALUE DECIMAL(10, 2),
     TIMEID VARCHAR(255),
     CUST_CC_NO VARCHAR(255),
     CUST_SSN INT,
-    BRANCH_CODE INT,
-    
-    FOREIGN KEY (BRANCH_CODE) REFERENCES CDW_SAPP_BRANCH(BRANCH_CODE),
-    FOREIGN KEY (CUST_SSN) REFERENCES CDW_SAPP_CUSTOMER(SSN)
+    BRANCH_CODE INT
 ); """
 query_create_customer_table = """
 CREATE TABLE IF NOT EXISTS CDW_SAPP_CUSTOMER (

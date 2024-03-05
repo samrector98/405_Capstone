@@ -1,17 +1,14 @@
+from pyspark.sql import SparkSession
 import mysql.connector
 import requests
-from pyspark.sql import SparkSession
-
-import database_setup
 import login_info
+import database_setup
 import transaction_details
-
-# Upon program start-up, print a message to show the program is running.
+import customer_details
 
 # Set up the spark session
-spark_app = SparkSession.builder.appName("sparkdemo").getOrCreate()
+spark = SparkSession.builder.appName("cdw_sapp").getOrCreate()
 
-# If the database does not exist...
 # Establish a connection to our mySQL server.
 connection = mysql.connector.connect(
     host = "localhost",
@@ -20,15 +17,20 @@ connection = mysql.connector.connect(
 )
 cursor = connection.cursor()
 
-# Create the database we will use for the rest of the project, and commit the change.
+# Check to see if a database for this project already exists.
+#cursor.execute("SHOW DATABASES LIKE 'creditcard_capstone'")
+#databases = cursor.fetchall()
+
+# If one does not exist, perform the database setup process.
+#if len(databases) == 0:
 cursor.execute("CREATE DATABASE IF NOT EXISTS creditcard_capstone")
 connection.commit()
 
-# Close the cursor and connection in order to re-open it with the new database as a parameter.
+    # Close the cursor and connection
 cursor.close()
 connection.close()
 
-#Re-establish connection to our SQL server, this time under the creditcard_capstone database.
+    #Re-establish connection to our SQL server, this time under the creditcard_capstone database.
 connection = mysql.connector.connect(
     host = "localhost",
     user = login_info.mysql_username,
@@ -36,6 +38,7 @@ connection = mysql.connector.connect(
     database = "creditcard_capstone"
 )
 cursor = connection.cursor()
+
 
 #Now, setup the tables using the mySQL queries stored in our data_loading file
 cursor.execute(database_setup.query_create_branch_table)
@@ -54,36 +57,28 @@ credit_data = database_setup.load_data_from_file("C:/Users/fuzed/Desktop/Per_Sch
 customer_data = database_setup.load_data_from_file("C:/Users/fuzed/Desktop/Per_Scholas/405_CapstoneProject/RTT89_M405/cdw_sapp_customer.json")
 
 # Create DataFrames from the lists derived from the input files
-branch_df = spark_app.createDataFrame(branch_data, schema = database_setup.branch_schema)
-credit_df = spark_app.createDataFrame(credit_data, schema = database_setup.credit_schema)
-customer_df = spark_app.createDataFrame(customer_data, schema = database_setup.customer_schema)
-
-# Get the data from the API provided in the instructions
-response = requests.get('https://raw.githubusercontent.com/platformps/LoanDataset/main/loan_data.json')
-loan_data = response.json()
-
-# Print out the response code
-print(response.status_code)
-
-# Create the dataframe for the loan API information using the data list and our custom schema
-loan_df = spark_app.createDataFrame(loan_data, database_setup.loan_schema)
+branch_df = spark.createDataFrame(branch_data, schema = database_setup.branch_schema)
+credit_df = spark.createDataFrame(credit_data, schema = database_setup.credit_schema)
+customer_df = spark.createDataFrame(customer_data, schema = database_setup.customer_schema)
 
 # The next step is to perform data transformation as outlined in the mapping document
 new_branch_df = database_setup.modify_branch_data(branch_df)
 new_credit_df = database_setup.modify_credit_data(credit_df)
 new_customer_df = database_setup.modify_customer_data(customer_df)
 
-# Sending modified dataframes to the mySQL database
-loan_df.write.format("jdbc") \
-    .mode("append") \
-    .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
-    .option("dbtable", "CDW_SAPP_LOAN_APPLICATION") \
-    .option("user", login_info.mysql_username) \
-    .option("password", login_info.mysql_password) \
-    .save()
+# Now, get the data from the API provided in the instructions
+response = requests.get('https://raw.githubusercontent.com/platformps/LoanDataset/main/loan_data.json')
+loan_data = response.json()
 
+# Print out the response code
+print("API Endpoint Status Code: {}".format(response.status_code))
+
+# Create the dataframe for the loan API information using the data list and our custom schema
+loan_df = spark.createDataFrame(loan_data, database_setup.loan_schema)
+
+# Sending modified dataframes to the mySQL database
 new_branch_df.write.format("jdbc") \
-    .mode("append") \
+    .mode("overwrite") \
     .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
     .option("dbtable", "CDW_SAPP_BRANCH") \
     .option("user", login_info.mysql_username) \
@@ -91,7 +86,7 @@ new_branch_df.write.format("jdbc") \
     .save()
 
 new_customer_df.write.format("jdbc") \
-    .mode("append") \
+    .mode("overwrite") \
     .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
     .option("dbtable", "CDW_SAPP_CUSTOMER") \
     .option("user", login_info.mysql_username) \
@@ -99,19 +94,54 @@ new_customer_df.write.format("jdbc") \
     .save()
 
 new_credit_df.write.format("jdbc") \
-    .mode("append") \
+    .mode("overwrite") \
     .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
     .option("dbtable", "CDW_SAPP_CREDIT_CARD") \
     .option("user", login_info.mysql_username) \
     .option("password", login_info.mysql_password) \
     .save()
+    
+loan_df.write.format("jdbc") \
+    .mode("overwrite") \
+    .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
+    .option("dbtable", "CDW_SAPP_LOAN_APPLICATION") \
+    .option("user", login_info.mysql_username) \
+    .option("password", login_info.mysql_password) \
+    .save()
 
-# If the database does exist...
-# Create dataframes from each of the relevant tables in the database
+# If the database for the project already exists, assume it is correct and load its data.
+#else:
+    # Create dataframes from each of the relevant tables in the database, to be used in the main loop of user interaction.
+    #new_branch_df = spark.read.format("jdbc") \
+        #.option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
+        #.option("dbtable", "CDW_SAPP_BRANCH") \
+        #.option("user", login_info.mysql_username) \
+        #.option("password", login_info.mysql_password) \
+        #.load()
+    
+    #new_customer_df = spark.read.format("jdbc") \
+        #.option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
+        #.option("dbtable", "CDW_SAPP_CUSTOMER") \
+        #.option("user", login_info.mysql_username) \
+        #.option("password", login_info.mysql_password) \
+        #.load()
+    
+    #new_credit_df = spark.read.format("jdbc") \
+        #.option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
+        #.option("dbtable", "CDW_SAPP_CREDIT_CARD") \
+        #.option("user", login_info.mysql_username) \
+        #.option("password", login_info.mysql_password) \
+        #.load()
+    
+    #loan_df = spark.read.format("jdbc") \
+        #.option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
+        #.option("dbtable", "CDW_SAPP_LOAN_APPLICATION") \
+        #.option("user", login_info.mysql_username) \
+        #.option("password", login_info.mysql_password) \
+        #.load()
 
 # Lastly, the program will enter the main loop of user input and respective output.
-
-menu = """Please select from the following options:
+menu = """\nPlease select from the following options:
 
 1. Display all transactions in a specific zip code over a specified time frame.
 2. Display all transactions for a specific transaction type.
@@ -125,57 +155,44 @@ Or, enter '0' to exit the program.
 
 Your choice: """
 
-user_input = input(menu).strip()
+menu_choice = input(menu).strip()
 
-while user_input != '0':
-
-    if user_input == '1':
-        # Create or replace the temporary views needed by the function
-        new_credit_df.createOrReplaceTempView("credit_table")
-        new_customer_df.createOrReplaceTempView("customer_table")
-        
-        # Call the function
-        results_1 = transaction_details.get_transactions_by_zip_code()
-        
-        # Display the results
-        results_1.show()
-        
-    elif user_input == '2':
-        # Create or replace the temporary view needed by the function
-        new_credit_df.createOrReplaceTempView("credit_table")
-        
-        # Call the function
-        results_2 = transaction_details.get_transactions_by_type()
-        
-        # Display the results
-        results_2.show()
-        print("The number of transactions found for the chosen transaction type was {}.".format(results_2.count()))
-        # output the total value of the transactions
-
-    elif user_input == '3':
-        # Create or replace the temporary views needed by the function
+if menu_choice != '0':
+    # Create the temporary views that any of the functions might use, since most of them will not change.
         new_branch_df.createOrReplaceTempView("branch_table")
         new_credit_df.createOrReplaceTempView("credit_table")
+        new_customer_df.createOrReplaceTempView("customer_table")
+        loan_df.createOrReplaceTempView("loan_table")
 
-        # Call the function
-        results_3 = transaction_details.get_transactions_by_state()
+while menu_choice != '0':
 
-        # Display the results
-        results_3.show()
-        print("The number of transactions found for the chosen transaction type was {}.".format(results_3.count()))
-        # output the total value of the transactions
+    if menu_choice == '1':
+        transaction_details.get_transactions_by_zip_code()
+        
+    elif menu_choice == '2':
+        transaction_details.get_transactions_by_type()
 
-    elif user_input == '4':
-        break
-    elif user_input == '5':
-        break
-    elif user_input == '6':
-        break
-    elif user_input == '7':
-        break
+    elif menu_choice == '3':
+        transaction_details.get_transactions_by_state()
+
+    elif menu_choice == '4':
+        customer_details.get_customer_details()
+        
+    elif menu_choice == '5':
+        new_customer_df = customer_details.update_customer_details(new_customer_df)
+
+        # We must also replace the temporary view with the newest dataframe, since it is not synced with the server change
+        new_customer_df.createOrReplaceTempView("customer_table")
+    
+    elif menu_choice == '6':
+        customer_details.get_transactions_by_customer_per_month()
+        
+    elif menu_choice == '7':
+        customer_details.get_transactions_by_customer_in_timeframe()
+
     else:
         print("Error. The option you entered was not recognized. Please try again.")
     
-    user_input = input(menu).strip()
+    menu_choice = input(menu).strip()
 
-print("Exiting program...") 
+print("Exiting program...")

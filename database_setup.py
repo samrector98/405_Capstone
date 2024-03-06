@@ -1,5 +1,5 @@
 from pyspark.sql.functions import col, lit, concat, lower, initcap, format_string, substring
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType, TimestampType, DecimalType
 import json
 
 # This file includes all functions and variables related to the database that will be accessed by the main program.
@@ -78,7 +78,7 @@ def modify_customer_data(df):
 
     return new_df
 
-# Scehma variables to use when initially gathering data from the provided files
+# Scehma variables to use when initially creating dataframes from the provided files
 branch_schema = StructType([
     StructField("BRANCH_CODE", IntegerType(), False),
     StructField("BRANCH_NAME", StringType(), True),
@@ -131,7 +131,7 @@ loan_schema = StructType([
     StructField("Application_Status", StringType(), True)
 ])
 
-# Multi-line variables to use as queries for the mySQL section in the main program
+# Multi-line variables to use as queries for mySQL database table creation in the main program
 query_create_branch_table = """
 CREATE TABLE IF NOT EXISTS CDW_SAPP_BRANCH (
     BRANCH_CODE INT PRIMARY KEY,

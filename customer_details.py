@@ -11,7 +11,7 @@ spark = SparkSession.builder.appName("cdw_sapp").getOrCreate()
 def get_customer_details():
     ssn = input("Please enter the customer's social security number: ").strip()
     
-    # Input Validation for Credit Card Number
+    # Input Validation for Social Security Number
     while (ssn.isnumeric() == False or len(ssn) != 9):
         ssn = input("Error. Your input was invalid. Please enter the 9 digit number with no dashes or spaces: ")
 
@@ -19,46 +19,48 @@ def get_customer_details():
 
     results = spark.sql(query)
 
+    results_num = results.count()
+
     # Display the results
-    if results.count() == 0:
+    if results_num == 0:
         print("There were no customers found with the specified social security number.")
     else:
         results.show()
 
 
-update_menu = """
-Which part of the customer's information would you like to update?
+# These three multi-line string variables are used in the following function, in order to modify a customer's info
+update_menu = """Which part of the customer's information would you like to update?
 
 1. Name
 2. Address
 3. Phone Number
 4. Email Address
 
-Or enter 0 if you are finished updating the information.
-"""
+Enter a number from the above options, or enter '0' if you are finished updating this customer's information.
+Your choice: """
 
-name_menu = """
-Which part of the name needs to be updated?
+name_menu = """Which part of the name needs to be updated?
             
 1. First Name
 2. Middle Name
 3. Last Name
-"""
 
-address_menu = """
-Which part of the address needs to be updated?
+Your choice: """
+
+address_menu = """Which part of the address needs to be updated?
             
 1. Street Address
 2. City
 3. State
 4. Zip Code
 5. Country
-"""
+
+Your choice: """
 
 def update_customer_details(df):
     ssn = input("Please enter the customer's social security number: ").strip()
     
-    # Input Validation for Credit Card Number
+    # Input Validation for Social Security Number
     while (ssn.isnumeric() == False or len(ssn) != 9):
         print("Error. Your input was invalid. Please enter the 9 digit number with no dashes or spaces.")
         ssn = input("Please enter the customer's social security number: ").strip()
@@ -132,23 +134,23 @@ def update_customer_details(df):
                 df = df.withColumn("CUST_CITY", when(col("SSN") == ssn, city).otherwise(col("CUST_CITY")))
 
             elif address_choice == '3':
-                state = input("Please enter the 2-letter abbreviation for the state of the customer's new address: ").strip().upper()
+                state = input("Please enter the abbreviation for the state of the customer's new address: ").strip().upper()
 
                 # Input validation
                 while (state.isalpha() == False or len(state) != 2):
-                    print("Error. Your input was invalid. Please enter the state abbreviation with 2 alphabetical characters.")
-                    state = input("Please enter the 2-letter abbreviation for the state of the customer's new address: ").strip().upper()
+                    print("Error. Your input was invalid. Please enter the state abbreviation as 2 alphabetical characters.")
+                    state = input("Please enter the abbreviation for the state of the customer's new address: ").strip().upper()
 
                 # Update the dataframe
                 df = df.withColumn("CUST_STATE", when(col("SSN") == ssn, state).otherwise(col("CUST_STATE")))
 
             elif address_choice == '4':
-                zip_code = input("Please enter the 5-digit zip code of the customer's new address, or enter '99999' if the address does not have a zip code: ").strip()
+                zip_code = input("Please enter the zip code of the customer's new address, or enter '99999' if the address does not have a zip code: ").strip()
 
                 # Input validation
                 while (zip_code.isnumeric() == False or len(zip_code) != 5):
-                    print("Error. Your input was invalid. Please enter the zip code as 5 numerical characters.")
-                    zip_code = input("Please enter the 5-digit zip code of the customer's new address, or enter '99999' if the address does not have a zip code: ").strip()
+                    print("Error. Your input was invalid. Please enter the zip code as a 5-digit number.")
+                    zip_code = input("Please enter the zip code of the customer's new address, or enter '99999' if the address does not have a zip code: ").strip()
 
                 # Update the dataframe
                 df = df.withColumn("CUST_ZIP", when(col("SSN") == ssn, zip_code).otherwise(col("CUST_ZIP")))
@@ -188,9 +190,12 @@ def update_customer_details(df):
         
         choice = input(update_menu).strip()
 
+    url = "jdbc:mysql://" + login_info.mysql_host + "/creditcard_capstone"
+
+    # Sending the updated dataframe to the SQL server in order to overwrite the old version of the data
     df.write.format("jdbc") \
     .mode("overwrite") \
-    .option("url", "jdbc:mysql://localhost:3306/creditcard_capstone") \
+    .option("url", url) \
     .option("dbtable", "CDW_SAPP_CUSTOMER") \
     .option("user", login_info.mysql_username) \
     .option("password", login_info.mysql_password) \
@@ -201,13 +206,13 @@ def update_customer_details(df):
     return df
 
 
-def get_transactions_by_customer_per_month():
-    ssn = input("Please enter the customer's social security number: ").strip()
+def get_monthly_card_statement():
+    card = input("Please enter a credit card number for the monthly statement: ").strip()
     
     # Input Validation for Credit Card Number
-    while (ssn.isnumeric() == False or len(ssn) != 9):
-        print("Error. Your input was invalid. Please enter the 9 digit number with no dashes or spaces: ")
-        ssn = input("Please enter the customer's social security number: ").strip()
+    while (card.isnumeric() == False or len(card) != 16):
+        print("Error. Your input was invalid. Please enter the 16 digit number with no dashes or spaces: ")
+        card = input("Please enter a credit card number for the monthly statement: ").strip()
     
     date = input("Please enter a date in 'YYYYMM' format: ").strip()
 
@@ -217,29 +222,30 @@ def get_transactions_by_customer_per_month():
         date = input("Please enter a date in 'YYYYMM' format: ").strip()
 
     query = """
-        SELECT cr.TRANSACTION_ID, cr.TRANSACTION_TYPE, cr.TRANSACTION_VALUE, cr.TIMEID
-        FROM credit_table cr JOIN customer_table cu ON cr.CUST_CC_NO = cu.CREDIT_CARD_NO 
-        WHERE cu.SSN = '{}' AND cr.TIMEID LIKE '{}%'
-        ORDER BY cr.TIMEID DESC
-        """.format(ssn, date)
+        SELECT TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_VALUE, TIMEID
+        FROM credit_table
+        WHERE CUST_CC_NO = '{}' AND TIMEID LIKE '{}%'
+        ORDER BY TIMEID DESC
+        """.format(card, date)
     
     results = spark.sql(query)
 
+    results_num = results.count()
+
     # Display the results
-    if results.count() == 0:
+    if results_num == 0:
         print("There were no transactions found for this customer in the selected month.")
     else:
-        results_num = results.count()
         results_total = round(results.agg(sum(results['TRANSACTION_VALUE'])).collect()[0][0], 2)
 
         print("You had {} transactions this month, totaling ${}. Here is your monthly statement:".format(results_num, results_total))
         results.show()
 
 
-def get_transactions_by_customer_in_timeframe():
+def get_transactions_by_customer():
     ssn = input("Please enter the customer's social security number: ").strip()
 
-    # Input Validation for Credit Card Number
+    # Input Validation for Social Security Number
     while (ssn.isnumeric() == False or len(ssn) != 9):
         print("Error. Your input was invalid. Please enter the 9 digit number with no dashes or spaces: ")
         ssn = input("Please enter the customer's social security number: ").strip()
@@ -267,8 +273,10 @@ def get_transactions_by_customer_in_timeframe():
     
     results = spark.sql(query)
 
+    results_num = results.count()
+
     # Display the results
-    if results.count() == 0:
+    if results_num == 0:
         print("There were no transactions found for this customer in the selected timeframe.")
     else:
         results.show()

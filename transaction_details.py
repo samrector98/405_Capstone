@@ -31,8 +31,10 @@ def get_transactions_by_zip_code():
     
     results = spark.sql(query)
 
+    results_num = results.count()
+
     # Display the results
-    if results.count() == 0:
+    if results_num == 0:
         print("There were no transactions found for that zip code.")
     else:
         results.show()
@@ -50,11 +52,12 @@ def get_transactions_by_type():
     
     results = spark.sql(query)
 
+    results_num = results.count()
+
     # Display the results
-    if results.count() == 0:
+    if results_num == 0:
         print("There were no transactions found for that type.")
     else:
-        results_num = results.count()
         results_total = round(results.agg(sum(results['TRANSACTION_VALUE'])).collect()[0][0], 2)
 
         print("The number of transactions found for the chosen type was {}.".format(results_num))
@@ -77,11 +80,12 @@ def get_transactions_by_state():
     
     results = spark.sql(query)
 
+    results_num = results.count()
+
     # Display the results
-    if results.count() == 0:
+    if results_num == 0:
         print("There were no transactions found for that state.")
     else:
-        results_num = results.count()
         results_total = round(results.agg(sum(results['TRANSACTION_VALUE'])).collect()[0][0], 2)
 
         print("The number of transactions found for the chosen state was {}.".format(results_num))

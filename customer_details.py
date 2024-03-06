@@ -19,13 +19,16 @@ def get_customer_details():
 
     results = spark.sql(query)
 
+    results_num = results.count()
+
     # Display the results
-    if results.count() == 0:
+    if results_num == 0:
         print("There were no customers found with the specified social security number.")
     else:
         results.show()
 
 
+# These three multi-line string variables are used in the following function, in order to modify a customer's info
 update_menu = """
 Which part of the customer's information would you like to update?
 
@@ -225,11 +228,12 @@ def get_transactions_by_customer_per_month():
     
     results = spark.sql(query)
 
+    results_num = results.count()
+
     # Display the results
-    if results.count() == 0:
+    if results_num == 0:
         print("There were no transactions found for this customer in the selected month.")
     else:
-        results_num = results.count()
         results_total = round(results.agg(sum(results['TRANSACTION_VALUE'])).collect()[0][0], 2)
 
         print("You had {} transactions this month, totaling ${}. Here is your monthly statement:".format(results_num, results_total))
@@ -267,8 +271,10 @@ def get_transactions_by_customer_in_timeframe():
     
     results = spark.sql(query)
 
+    results_num = results.count()
+
     # Display the results
-    if results.count() == 0:
+    if results_num == 0:
         print("There were no transactions found for this customer in the selected timeframe.")
     else:
         results.show()

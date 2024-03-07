@@ -52,9 +52,9 @@ connection.close()
 
 # Get the data from the local files
 print("Loading data from input files...")
-branch_data = database_setup.load_data_from_file("C:/Users/fuzed/Desktop/Per_Scholas/405_CapstoneProject/RTT89_M405/cdw_sapp_branch.json")
-credit_data = database_setup.load_data_from_file("C:/Users/fuzed/Desktop/Per_Scholas/405_CapstoneProject/RTT89_M405/cdw_sapp_credit.json")
-customer_data = database_setup.load_data_from_file("C:/Users/fuzed/Desktop/Per_Scholas/405_CapstoneProject/RTT89_M405/cdw_sapp_customer.json")
+branch_data = database_setup.load_data_from_file("cdw_sapp_branch.json")
+credit_data = database_setup.load_data_from_file("cdw_sapp_credit.json")
+customer_data = database_setup.load_data_from_file("cdw_sapp_customer.json")
 
 # Create DataFrames from the lists derived from the input files
 branch_df = spark.createDataFrame(branch_data, schema = database_setup.branch_schema)
